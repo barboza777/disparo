@@ -1,0 +1,6 @@
+- Keep TanStack Start file routes and the shared login view for `/auth` and `/autenticacao` so redirects remain consistent.
+- Keep payment generation and provider polling disabled until a legitimate payment provider is explicitly integrated; never simulate payment approval.
+- Accept order status only through authenticated, signed server-to-server events, so public callers cannot approve orders.
+- Keep all private credentials in deployment environment variables, never in source archives.
+- Use locally packaged media for fallback images so the exported application does not depend on editor asset URLs.
+- Deploy this standalone export with the Nitro Node server preset so its server runtime is portable outside the editor.

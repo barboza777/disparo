@@ -1,0 +1,115 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { AlertTriangle, BarChart3, CheckCircle2, ChevronRight, CircleDollarSign, ClipboardList, ImageUp, LogOut, Menu, Save, Search, Settings, TrendingUp, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getAdminDashboard, getAdminSettings, saveAdminSettings } from "@/lib/admin.functions";
+import { supabase } from "@/integrations/supabase/client";
+
+type Dashboard = Awaited<ReturnType<typeof getAdminDashboard>>;
+type AdminSettings = Awaited<ReturnType<typeof getAdminSettings>>;
+type View = "overview" | "orders" | "settings";
+
+export const Route = createFileRoute("/_authenticated/admin")({
+  head: () => ({ meta: [
+    { title: "Painel administrativo | Central de pedidos" },
+    { name: "description", content: "Gestão de pedidos, conversão, integrações e configurações." },
+    { property: "og:title", content: "Painel administrativo | Central de pedidos" },
+    { property: "og:description", content: "Gestão de pedidos, conversão, integrações e configurações." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
+  component: AdminPage,
+});
+
+const money = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+const dateTime = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—";
+const paidStatuses = ["paid", "approved", "completed", "confirmed", "success", "pago", "aprovado"];
+const maskEmail = (email: string) => { const [name = "", domain = ""] = email.split("@"); return `${name.slice(0, 2)}***@${domain}`; };
+const maskDocument = (value: string | null) => value ? `${value.slice(0, 3)}.***.***-${value.slice(-2)}` : "—";
+
+function AdminPage() {
+  const navigate = useNavigate();
+  const fetchDashboard = useServerFn(getAdminDashboard);
+  const fetchSettings = useServerFn(getAdminSettings);
+  const saveSettings = useServerFn(saveAdminSettings);
+  const [view, setView] = useState<View>("overview");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([fetchDashboard(), fetchSettings()]).then(([dashboardData, settingsData]) => {
+      setDashboard(dashboardData); setSettings(settingsData);
+    }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Não foi possível carregar o painel.")).finally(() => setLoading(false));
+  }, [fetchDashboard, fetchSettings]);
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    await navigate({ to: "/auth", replace: true });
+  }
+
+  if (loading) return <div className="grid min-h-screen place-items-center bg-muted/40"><div className="h-7 w-7 animate-spin rounded-full border-2 border-destructive border-t-transparent" aria-label="Carregando" /></div>;
+  if (error || !dashboard || !settings) return <div className="grid min-h-screen place-items-center bg-muted/40 p-6"><Card className="max-w-md"><CardContent className="pt-6 text-center"><AlertTriangle className="mx-auto mb-3 text-destructive"/><p className="font-semibold">Acesso indisponível</p><p className="mt-2 text-sm text-muted-foreground">{error || "Não foi possível carregar seus dados."}</p><Button className="mt-5" variant="outline" onClick={signOut}>Voltar ao acesso</Button></CardContent></Card></div>;
+
+  const navigation = [{ id: "overview" as const, label: "Visão geral", icon: BarChart3 }, { id: "orders" as const, label: "Pedidos", icon: ClipboardList }, { id: "settings" as const, label: "Configurações", icon: Settings }];
+  return <div className="min-h-screen bg-muted/40">
+    <aside className={`fixed inset-y-0 left-0 z-40 w-64 border-r bg-card transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className="flex h-16 items-center justify-between border-b px-5"><div><p className="text-xs font-bold uppercase text-destructive">Central</p><p className="text-sm font-semibold">Administração</p></div><Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Fechar menu"><X /></Button></div>
+      <nav className="space-y-1 p-3">{navigation.map((item) => <Button key={item.id} variant={view === item.id ? "secondary" : "ghost"} className="w-full justify-start" onClick={() => { setView(item.id); setMenuOpen(false); }}><item.icon />{item.label}</Button>)}</nav>
+      <div className="absolute inset-x-3 bottom-4"><Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={signOut}><LogOut />Sair</Button></div>
+    </aside>
+    {menuOpen && <div className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={() => setMenuOpen(false)} />}
+    <main className="lg:pl-64">
+      <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:px-8"><Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Abrir menu"><Menu /></Button><div className="min-w-0 flex-1"><h1 className="truncate text-lg font-semibold">{navigation.find((item) => item.id === view)?.label}</h1><p className="text-xs text-muted-foreground">Pedidos e operação em tempo real</p></div><Badge variant="outline" className="gap-1.5"><span className="h-2 w-2 rounded-full bg-chart-2" />Operação ativa</Badge></header>
+      <div className="mx-auto max-w-7xl p-4 lg:p-8">{view === "overview" && <Overview dashboard={dashboard} onOrders={() => setView("orders")} />}{view === "orders" && <Orders dashboard={dashboard} />}{view === "settings" && <SettingsView initial={settings} onSave={async (payload) => { await saveSettings({ data: payload }); toast.success("Configurações salvas"); }} />}</div>
+    </main>
+  </div>;
+}
+
+function Overview({ dashboard, onOrders }: { dashboard: Dashboard; onOrders: () => void }) {
+  const cards = [
+    { label: "Pedidos gerados", value: String(dashboard.metrics.totalOrders), note: `${dashboard.metrics.paidOrders} pagos`, icon: ClipboardList },
+    { label: "Conversão", value: `${dashboard.metrics.conversion.toFixed(1)}%`, note: "pagos sobre gerados", icon: TrendingUp },
+    { label: "Receita aprovada", value: money(dashboard.metrics.approvedRevenueCents), note: "pagamentos confirmados", icon: CircleDollarSign },
+    { label: "Valor pendente", value: money(dashboard.metrics.pendingAmountCents), note: "aguardando pagamento", icon: AlertTriangle },
+  ];
+  const max = Math.max(...dashboard.daily.map((day) => day.orders), 1);
+  return <div className="space-y-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map((item) => <Card key={item.label} className="rounded-lg shadow-none"><CardContent className="p-5"><div className="flex items-start justify-between"><p className="text-xs font-medium text-muted-foreground">{item.label}</p><item.icon className="h-4 w-4 text-destructive" /></div><p className="mt-3 text-2xl font-semibold">{item.value}</p><p className="mt-1 text-xs text-muted-foreground">{item.note}</p></CardContent></Card>)}</div>
+    <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]"><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Pedidos nos últimos 7 dias</CardTitle></CardHeader><CardContent><div className="flex h-56 items-end gap-3 border-b">{dashboard.daily.map((day) => <div key={day.date} className="flex h-full flex-1 flex-col justify-end gap-2"><div className="relative mx-auto w-full max-w-12 rounded-t-sm bg-muted" style={{ height: `${Math.max((day.orders / max) * 75, 5)}%` }}><div className="absolute inset-x-0 bottom-0 rounded-t-sm bg-destructive" style={{ height: `${day.orders ? (day.paid / day.orders) * 100 : 0}%` }} /></div><span className="pb-2 text-center text-[10px] text-muted-foreground">{day.date.slice(8)}</span></div>)}</div><div className="mt-4 flex gap-5 text-xs text-muted-foreground"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-muted-foreground" />Gerados</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-destructive" />Pagos</span></div></CardContent></Card>
+      <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Integrações</CardTitle></CardHeader><CardContent className="space-y-4"><IntegrationRow name="UTMify" status={dashboard.integration.utmify} detail={`${dashboard.integration.paidSent} aprovações enviadas`} /><div className="border-t pt-4 text-xs text-muted-foreground">Última atualização: {dateTime(dashboard.integration.lastSyncAt)}</div></CardContent></Card></div>
+    <Card className="rounded-lg shadow-none"><CardHeader className="flex-row items-center justify-between"><CardTitle className="text-base">Atividade recente</CardTitle><Button variant="ghost" size="sm" onClick={onOrders}>Ver todos <ChevronRight /></Button></CardHeader><CardContent><OrderTable orders={dashboard.orders.slice(0, 6)} /></CardContent></Card></div>;
+}
+
+function IntegrationRow({ name, status, detail }: { name: string; status: string; detail: string }) { const online = status === "online"; return <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{name}</p><p className="text-xs text-muted-foreground">{detail}</p></div><Badge variant={online ? "outline" : "destructive"} className="gap-1.5">{online ? <CheckCircle2 /> : <AlertTriangle />}{online ? "Operando" : "Atenção"}</Badge></div>; }
+
+function Orders({ dashboard }: { dashboard: Dashboard }) {
+  const [query, setQuery] = useState(""); const [status, setStatus] = useState("all");
+  const filtered = useMemo(() => dashboard.orders.filter((order) => { const paid = paidStatuses.includes(order.gateway_status.toLowerCase()); const matchStatus = status === "all" || (status === "paid" ? paid : !paid); const needle = query.toLowerCase(); return matchStatus && (!needle || order.customer_name.toLowerCase().includes(needle) || order.txid.toLowerCase().includes(needle)); }), [dashboard.orders, query, status]);
+  return <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Todos os pedidos</CardTitle><div className="flex flex-col gap-2 pt-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input className="pl-9" placeholder="Buscar por cliente ou código" value={query} onChange={(event) => setQuery(event.target.value)} /></div><Select value={status} onValueChange={setStatus}><SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem><SelectItem value="paid">Pagos</SelectItem><SelectItem value="pending">Pendentes</SelectItem></SelectContent></Select></div></CardHeader><CardContent>{filtered.length ? <OrderTable orders={filtered} /> : <p className="py-12 text-center text-sm text-muted-foreground">Nenhum pedido encontrado.</p>}</CardContent></Card>;
+}
+
+function OrderTable({ orders }: { orders: Dashboard["orders"] }) { return <Table><TableHeader><TableRow><TableHead>Cliente</TableHead><TableHead>Pedido</TableHead><TableHead>Status</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead>UTMify</TableHead></TableRow></TableHeader><TableBody>{orders.map((order) => { const paid = paidStatuses.includes(order.gateway_status.toLowerCase()); return <TableRow key={order.id}><TableCell><p className="font-medium">{order.customer_name}</p><p className="text-xs text-muted-foreground">{maskEmail(order.customer_email)} · {maskDocument(order.customer_document)}</p></TableCell><TableCell className="max-w-32 truncate font-mono text-xs">{order.txid}</TableCell><TableCell><Badge variant={paid ? "outline" : "secondary"}>{paid ? "Pago" : "Pendente"}</Badge></TableCell><TableCell className="font-medium">{money(order.amount_in_cents)}</TableCell><TableCell className="whitespace-nowrap text-xs text-muted-foreground">{dateTime(order.created_at)}</TableCell><TableCell>{order.last_error ? <Badge variant="destructive">Falha</Badge> : order.utmify_paid_sent_at || order.utmify_pending_sent_at ? <Badge variant="outline">Enviado</Badge> : <span className="text-xs text-muted-foreground">Aguardando</span>}</TableCell></TableRow>; })}</TableBody></Table>; }
+
+function SettingsView({ initial, onSave }: { initial: AdminSettings; onSave: (data: { companyName: string; companyDocument: string; supportPhone: string; checkoutDescription: string; warningBannerText: string; attentionTitle: string; headerLogoPath: string; bannerPrimaryPath: string; bannerSecondaryPath: string; footerPolicyOneLabel: string; footerPolicyOneUrl: string; footerPolicyTwoLabel: string; footerPolicyTwoUrl: string; processingFeeCents: number; icmsFeeCents: number; federalFeeCents: number; hubpagueApiToken: string; searchapiCpfToken: string }) => Promise<void> }) {
+  const [form, setForm] = useState(initial); const [saving, setSaving] = useState(false); const [logoFile, setLogoFile] = useState<File | null>(null); const [logoPreview, setLogoPreview] = useState(initial.header_logo_url); const [primaryBannerFile, setPrimaryBannerFile] = useState<File | null>(null); const [secondaryBannerFile, setSecondaryBannerFile] = useState<File | null>(null); const [primaryBannerPreview, setPrimaryBannerPreview] = useState(initial.banner_primary_url); const [secondaryBannerPreview, setSecondaryBannerPreview] = useState(initial.banner_secondary_url);
+  const field = (key: keyof AdminSettings) => ({ value: String(form[key] ?? ""), onChange: (event: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: event.target.value }) });
+  function chooseLogo(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) { toast.error("Escolha uma imagem PNG, JPG ou WebP de até 2 MB"); event.target.value = ""; return; } setLogoFile(file); setLogoPreview(URL.createObjectURL(file)); }
+  function chooseBanner(event: ChangeEvent<HTMLInputElement>, slot: "primary" | "secondary") { const file = event.target.files?.[0]; if (!file) return; if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) { toast.error("Escolha uma imagem PNG, JPG ou WebP de até 2 MB"); event.target.value = ""; return; } if (slot === "primary") { setPrimaryBannerFile(file); setPrimaryBannerPreview(URL.createObjectURL(file)); } else { setSecondaryBannerFile(file); setSecondaryBannerPreview(URL.createObjectURL(file)); } }
+  async function uploadAsset(file: File | null, baseName: string, currentPath: string) { if (!file) return currentPath; const extension = file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png"; const path = `${baseName}.${extension}`; const { error } = await supabase.storage.from("site-branding").upload(path, file, { upsert: true, contentType: file.type }); if (error) throw error; return path; }
+  async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); try { const [headerLogoPath, bannerPrimaryPath, bannerSecondaryPath] = await Promise.all([uploadAsset(logoFile, "header-logo", form.header_logo_path), uploadAsset(primaryBannerFile, "banner-primary", form.banner_primary_path), uploadAsset(secondaryBannerFile, "banner-secondary", form.banner_secondary_path)]); await onSave({ companyName: form.company_name, companyDocument: form.company_document, supportPhone: form.support_phone, checkoutDescription: form.checkout_description, warningBannerText: form.warning_banner_text, attentionTitle: form.attention_title, headerLogoPath, bannerPrimaryPath, bannerSecondaryPath, footerPolicyOneLabel: form.footer_policy_one_label, footerPolicyOneUrl: form.footer_policy_one_url, footerPolicyTwoLabel: form.footer_policy_two_label, footerPolicyTwoUrl: form.footer_policy_two_url, processingFeeCents: form.processing_fee_cents, icmsFeeCents: form.icms_fee_cents, federalFeeCents: form.federal_fee_cents, hubpagueApiToken: form.hubpague_api_token, searchapiCpfToken: form.searchapi_cpf_token }); setForm({ ...form, header_logo_path: headerLogoPath, banner_primary_path: bannerPrimaryPath, banner_secondary_path: bannerSecondaryPath }); setLogoFile(null); setPrimaryBannerFile(null); setSecondaryBannerFile(null); } catch (reason: unknown) { toast.error(reason instanceof Error ? reason.message : "Não foi possível salvar"); } finally { setSaving(false); } }
+  return <form onSubmit={submit} className="space-y-4"><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Gateway de Pagamentos</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Field label="Token Hubpague"><Input required placeholder="Cole seu token da API Hubpague aqui" value={form.hubpague_api_token || ""} onChange={(event) => setForm({ ...form, hubpague_api_token: event.target.value })} /></Field><Field label="Token SearchAPI CPF"><Input required placeholder="Token para validação de CPF" value={form.searchapi_cpf_token || ""} onChange={(event) => setForm({ ...form, searchapi_cpf_token: event.target.value })} /></Field></CardContent><CardContent className="border-t pt-4 text-xs text-muted-foreground"><p>✅ Ao salvar, essas credenciais serão usadas automaticamente em todos os pagamentos.</p><p className="mt-2">🔐 Os tokens são armazenados com segurança e nunca serão expostos.</p></CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Identidade visual</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-4 sm:flex-row sm:items-center">{logoPreview ? <div className="flex h-20 w-full items-center justify-center rounded-md border bg-muted/30 p-3 sm:w-48"><img src={logoPreview} alt="Logo atual" className="max-h-full max-w-full object-contain" /></div> : <div className="flex h-20 w-full items-center justify-center rounded-md border bg-muted/30 text-muted-foreground sm:w-48"><ImageUp className="h-6 w-6" /></div>}<div className="flex-1"><Field label="Logo dos cabeçalhos"><Input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseLogo} /></Field><p className="mt-2 text-xs text-muted-foreground">PNG, JPG ou WebP, com até 2 MB. A mesma imagem será usada em todas as etapas.</p></div></div></CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Banners das páginas</CardTitle></CardHeader><CardContent className="grid gap-5 sm:grid-cols-2"><BannerUpload label="Banner do checkout e Pix pendente" preview={primaryBannerPreview} onChange={(event) => chooseBanner(event, "primary")} /><BannerUpload label="Banner acima do pagamento" preview={secondaryBannerPreview} onChange={(event) => chooseBanner(event, "secondary")} /></CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Textos da página de detalhes</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Field label="Texto da faixa vermelha"><Input placeholder="Deixe vazio para manter a faixa sem texto" {...field("warning_banner_text")} /></Field><Field label="Título de atenção"><Input maxLength={500} {...field("attention_title")} /></Field></CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Políticas do rodapé</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Field label="Nome da primeira política"><Input {...field("footer_policy_one_label")} /></Field><Field label="Link da primeira política"><Input type="url" placeholder="https://" {...field("footer_policy_one_url")} /></Field><Field label="Nome da segunda política"><Input {...field("footer_policy_two_label")} /></Field><Field label="Link da segunda política"><Input type="url" placeholder="https://" {...field("footer_policy_two_url")} /></Field></CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Dados da cobrança</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Field label="Razão social"><Input required maxLength={160} {...field("company_name")} /></Field><Field label="CNPJ"><Input required inputMode="numeric" maxLength={30} {...field("company_document")} /></Field><Field label="Telefone"><Input required inputMode="tel" maxLength={30} {...field("support_phone")} /></Field><Field label="Descrição da cobrança"><Input required {...field("checkout_description")} /></Field><MoneyField label="Processamento eletrônico" value={form.processing_fee_cents} onChange={(value) => setForm({ ...form, processing_fee_cents: value })} /><MoneyField label="ICMS" value={form.icms_fee_cents} onChange={(value) => setForm({ ...form, icms_fee_cents: value })} /><MoneyField label="Contribuição federal" value={form.federal_fee_cents} onChange={(value) => setForm({ ...form, federal_fee_cents: value })} /></CardContent></Card><div className="flex justify-end"><Button variant="destructive" disabled={saving}>{saving ? "Salvando…" : <><Save />Salvar configurações</>}</Button></div></form>;
+}
+function BannerUpload({ label, preview, onChange }: { label: string; preview: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void }) { return <div className="space-y-2"><Label>{label}</Label><div className="flex aspect-[3/1] items-center justify-center overflow-hidden rounded-md border bg-muted/30">{preview ? <img src={preview} alt={`Prévia: ${label}`} className="h-full w-full object-contain" /> : <ImageUp className="h-6 w-6 text-muted-foreground" />}</div><Input type="file" accept="image/png,image/jpeg,image/webp" onChange={onChange} /></div>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-2"><Label>{label}</Label>{children}</div>; }
+function MoneyField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) { return <Field label={label}><Input type="number" min="0" step="0.01" value={(value / 100).toFixed(2)} onChange={(event) => onChange(Math.round(Number(event.target.value) * 100))} /></Field>; }
