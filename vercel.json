@@ -1,19 +1,8 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": ".output/public",
+  "outputDirectory": ".output",
   "framework": "other",
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "api/**": {
-      "maxDuration": 30
-    }
-  },
-  "routes": [
-    {
-      "src": "/.*",
-      "dest": ".output/server/index.mjs"
-    }
-  ]
+  }
 }
